@@ -20,7 +20,9 @@ local Fatality = {
     AccentObjects = {},
     Registry = {},
     Flags = {},
-    IsSearching = false
+    IsSearching = false,
+    RainbowEnabled = true,
+    RainbowSpeed = 1.5
 }
 
 -- Theme Palette
@@ -97,6 +99,14 @@ function Fatality:SetTheme(accent, secondary)
             elseif obj:IsA("ScrollingFrame") then
                 obj.ScrollBarImageColor3 = self.Accent
             end
+        end
+    end
+
+    -- Если радуга выключена, применяем текущую тему к обводке меню
+    if not self.RainbowEnabled and self.MainStroke then
+        local grad = self.MainStroke:FindFirstChildOfClass("UIGradient")
+        if grad then
+            grad.Color = newGradient
         end
     end
 end
@@ -272,10 +282,14 @@ function Fatality:CreateWindow(titleText)
         ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255,0,255)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
     })
+    Fatality.MainStroke = Stroke
+    Fatality.MainStrokeGradient = StrokeGradient
 
     task.spawn(function()
         while Main.Parent do
-            StrokeGradient.Rotation += 1.5
+            if Fatality.RainbowEnabled then
+                StrokeGradient.Rotation += Fatality.RainbowSpeed
+            end
             task.wait(0.01)
         end
     end)
@@ -627,6 +641,15 @@ function Fatality:CreateWindow(titleText)
                     ZIndex = 51
                 })
                 
+                local SatCursor = Create("Frame", {
+                    Size = UDim2.new(0, 4, 0, 4),
+                    BackgroundColor3 = Color3.new(1, 1, 1),
+                    ZIndex = 52,
+                    Parent = SatFrame
+                })
+                Create("UIStroke", {Thickness = 1, Color = Color3.new(0, 0, 0), Parent = SatCursor})
+                Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = SatCursor})
+
                 local HueFrame = Create("ImageLabel", {
                     Size = UDim2.new(0, 130, 0, 10),
                     Position = UDim2.new(0, 10, 0, 150),
@@ -634,14 +657,28 @@ function Fatality:CreateWindow(titleText)
                     Parent = PickerFrame,
                     ZIndex = 51
                 })
+                
+                local HueCursor = Create("Frame", {
+                    Size = UDim2.new(0, 2, 1, 4),
+                    Position = UDim2.new(0, 0, 0, -2),
+                    BackgroundColor3 = Color3.new(1, 1, 1),
+                    ZIndex = 52,
+                    Parent = HueFrame
+                })
+                Create("UIStroke", {Thickness = 1, Color = Color3.new(0, 0, 0), Parent = HueCursor})
 
                 local h, s, v = default:ToHSV()
                 
                 function CP:Set(color)
+                    local nh, ns, nv = color:ToHSV()
+                    h, s, v = nh, ns, nv
                     CP.Value = color
                     Preview.BackgroundColor3 = color
+                    SatCursor.Position = UDim2.new(s, -2, 1 - v, -2)
+                    HueCursor.Position = UDim2.new(1 - h, -1, 0, -2)
                     callback(color)
                 end
+                CP:Set(default)
 
                 local draggingHue, draggingSat = false, false
                 
@@ -652,12 +689,18 @@ function Fatality:CreateWindow(titleText)
                 RunService.RenderStepped:Connect(function()
                     if draggingHue then
                         h = 1 - math.clamp((Mouse.X - HueFrame.AbsolutePosition.X) / HueFrame.AbsoluteSize.X, 0, 1)
-                        CP:Set(Color3.fromHSV(h, s, v))
+                        CP.Value = Color3.fromHSV(h, s, v)
+                        Preview.BackgroundColor3 = CP.Value
+                        HueCursor.Position = UDim2.new(1 - h, -1, 0, -2)
+                        callback(CP.Value)
                     end
                     if draggingSat then
                         s = math.clamp((Mouse.X - SatFrame.AbsolutePosition.X) / SatFrame.AbsoluteSize.X, 0, 1)
                         v = 1 - math.clamp((Mouse.Y - SatFrame.AbsolutePosition.Y) / SatFrame.AbsoluteSize.Y, 0, 1)
-                        CP:Set(Color3.fromHSV(h, s, v))
+                        CP.Value = Color3.fromHSV(h, s, v)
+                        Preview.BackgroundColor3 = CP.Value
+                        SatCursor.Position = UDim2.new(s, -2, 1 - v, -2)
+                        callback(CP.Value)
                     end
                 end)
 
