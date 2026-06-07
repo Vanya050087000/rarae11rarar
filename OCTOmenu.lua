@@ -21,8 +21,8 @@ local Fatality = {
     Registry = {},
     Flags = {},
     IsSearching = false,
-    RainbowEnabled = true,
-    RainbowSpeed = 1.5
+    RainbowEnabled = true, -- Радуга включена по умолчанию
+    RainbowSpeed = 2.5     -- Скорость вращения
 }
 
 -- Theme Palette
@@ -268,8 +268,9 @@ function Fatality:CreateWindow(titleText)
     -- Rainbow Border Logic
     local Stroke = Instance.new("UIStroke")
     Stroke.Parent = Main
-    Stroke.Thickness = 3
+    Stroke.Thickness = 3.5
     Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    Stroke.LineJoinMode = Enum.LineJoinMode.Round
 
     local StrokeGradient = Instance.new("UIGradient")
     StrokeGradient.Parent = Stroke
@@ -288,7 +289,7 @@ function Fatality:CreateWindow(titleText)
     task.spawn(function()
         while Main.Parent do
             if Fatality.RainbowEnabled then
-                StrokeGradient.Rotation += Fatality.RainbowSpeed
+                StrokeGradient.Rotation = (StrokeGradient.Rotation + Fatality.RainbowSpeed) % 360
             end
             task.wait(0.01)
         end
@@ -689,18 +690,14 @@ function Fatality:CreateWindow(titleText)
                 RunService.RenderStepped:Connect(function()
                     if draggingHue then
                         h = 1 - math.clamp((Mouse.X - HueFrame.AbsolutePosition.X) / HueFrame.AbsoluteSize.X, 0, 1)
-                        CP.Value = Color3.fromHSV(h, s, v)
-                        Preview.BackgroundColor3 = CP.Value
-                        HueCursor.Position = UDim2.new(1 - h, -1, 0, -2)
-                        callback(CP.Value)
+                        local newCol = Color3.fromHSV(h, s, v)
+                        CP:Set(newCol)
                     end
                     if draggingSat then
                         s = math.clamp((Mouse.X - SatFrame.AbsolutePosition.X) / SatFrame.AbsoluteSize.X, 0, 1)
                         v = 1 - math.clamp((Mouse.Y - SatFrame.AbsolutePosition.Y) / SatFrame.AbsoluteSize.Y, 0, 1)
-                        CP.Value = Color3.fromHSV(h, s, v)
-                        Preview.BackgroundColor3 = CP.Value
-                        SatCursor.Position = UDim2.new(s, -2, 1 - v, -2)
-                        callback(CP.Value)
+                        local newCol = Color3.fromHSV(h, s, v)
+                        CP:Set(newCol)
                     end
                 end)
 
