@@ -1,3 +1,8 @@
+--[[
+    FATALITY.WIN UI FRAMEWORK
+    Style: Fatality CS:GO (Purple/Pink/Dark)
+    Features: Rainbow border, ESP, Tracers, Centered watermark
+]]
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -21,8 +26,8 @@ local Fatality = {
     Registry = {},
     Flags = {},
     IsSearching = false,
-    RainbowEnabled = true, -- Радуга включена по умолчанию
-    RainbowSpeed = 2.5     -- Скорость вращения
+    RainbowEnabled = true,
+    RainbowSpeed = 2.5
 }
 
 -- Theme Palette
@@ -102,7 +107,6 @@ function Fatality:SetTheme(accent, secondary)
         end
     end
 
-    -- Если радуга выключена, применяем текущую тему к обводке меню
     if not self.RainbowEnabled and self.MainStroke then
         local grad = self.MainStroke:FindFirstChildOfClass("UIGradient")
         if grad then
@@ -154,10 +158,12 @@ function Fatality:AddWatermark()
         DisplayOrder = 9999
     })
 
+    -- Main Frame (Center)
     local Frame = Create("Frame", {
-        Size = UDim2.new(0, 280, 0, 24),
-        Position = UDim2.new(1, -290, 0, 10),
+        Size = UDim2.new(0, 300, 0, 60),
+        Position = UDim2.new(0.5, -150, 0.5, -30),
         BackgroundColor3 = Theme.Main,
+        BackgroundTransparency = 0.3,
         BorderSizePixel = 0,
         Parent = WatermarkGui
     })
@@ -171,25 +177,201 @@ function Fatality:AddWatermark()
     local Grad = Create("UIGradient", {Color = Theme.AccentGradient, Parent = TopBar})
     table.insert(self.Gradients, Grad)
 
-    local Label = Create("TextLabel", {
-        Size = UDim2.new(1, -10, 1, 0),
-        Position = UDim2.new(0, 5, 0, 0),
+    -- Username
+    local UserLabel = Create("TextLabel", {
+        Size = UDim2.new(1, -10, 0, 18),
+        Position = UDim2.new(0, 5, 0, 5),
         BackgroundTransparency = 1,
-        Text = "FATALITY.WIN | user: " .. LocalPlayer.Name .. " | fps: 0 | ping: 0ms",
+        Text = "👤 " .. LocalPlayer.Name,
         TextColor3 = Color3.new(1, 1, 1),
-        Font = self.Font,
-        TextSize = 12,
+        Font = Fatality.Font,
+        TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = Frame
     })
 
+    -- FPS
+    local FPSLabel = Create("TextLabel", {
+        Size = UDim2.new(1, -10, 0, 18),
+        Position = UDim2.new(0, 5, 0, 22),
+        BackgroundTransparency = 1,
+        Text = "⚡ FPS: 0",
+        TextColor3 = Color3.new(1, 1, 1),
+        Font = Fatality.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = Frame
+    })
+
+    -- Time
+    local TimeLabel = Create("TextLabel", {
+        Size = UDim2.new(1, -10, 0, 18),
+        Position = UDim2.new(0, 5, 0, 39),
+        BackgroundTransparency = 1,
+        Text = "🕐 00:00:00",
+        TextColor3 = Color3.new(1, 1, 1),
+        Font = Fatality.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = Frame
+    })
+
+    -- Top Center Info
+    local TopInfo = Create("Frame", {
+        Size = UDim2.new(0, 200, 0, 25),
+        Position = UDim2.new(0.5, -100, 0, 5),
+        BackgroundColor3 = Theme.Main,
+        BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+        Parent = WatermarkGui
+    })
+    Create("UIStroke", {Color = Theme.Outline, Parent = TopInfo})
+
+    local TopLabel = Create("TextLabel", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "FATALITY.WIN",
+        TextColor3 = Color3.new(1, 1, 1),
+        Font = Fatality.Font,
+        TextSize = 12,
+        Parent = TopInfo
+    })
+    local TopGrad = Create("UIGradient", {Color = Theme.AccentGradient, Parent = TopLabel})
+    table.insert(self.Gradients, TopGrad)
+
+    -- Update
     RunService.RenderStepped:Connect(function()
         local fps = math.floor(1 / RunService.RenderStepped:Wait())
-        local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-        Label.Text = string.format("FATALITY.WIN | user: %s | fps: %d | ping: %dms", LocalPlayer.Name, fps, ping)
-        Frame.Size = UDim2.new(0, Label.TextBounds.X + 20, 0, 24)
-        Frame.Position = UDim2.new(1, -Frame.Size.X.Offset - 10, 0, 10)
+        local time = os.date("%H:%M:%S")
+        local date = os.date("%d/%m/%Y")
+        
+        FPSLabel.Text = string.format("⚡ FPS: %d", fps)
+        TimeLabel.Text = string.format("🕐 %s | 📅 %s", time, date)
+        
+        -- Adjust frame size based on content
+        local maxWidth = math.max(UserLabel.TextBounds.X, FPSLabel.TextBounds.X, TimeLabel.TextBounds.X)
+        Frame.Size = UDim2.new(0, maxWidth + 25, 0, 60)
+        Frame.Position = UDim2.new(0.5, -(maxWidth + 25)/2, 0.5, -30)
     end)
+end
+
+-- ESP Functions
+local ESPConnections = {}
+local ESPObjects = {}
+
+function Fatality:ClearESP()
+    for _, conn in pairs(ESPConnections) do
+        conn:Disconnect()
+    end
+    ESPConnections = {}
+    
+    for _, obj in pairs(ESPObjects) do
+        obj:Destroy()
+    end
+    ESPObjects = {}
+end
+
+function Fatality:EnableESP(settings)
+    self:ClearESP()
+    
+    local function createESP(player)
+        if player == LocalPlayer then return end
+        
+        local character = player.Character
+        if not character then return end
+        
+        -- Highlight
+        if settings.Boxes then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "ESP_Highlight"
+            highlight.FillTransparency = 0.7
+            highlight.OutlineTransparency = 0
+            highlight.FillColor = settings.BoxColor
+            highlight.OutlineColor = settings.BoxColor
+            highlight.Parent = character
+            table.insert(ESPObjects, highlight)
+        end
+        
+        -- Tracer
+        if settings.Tracers then
+            local tracer = Instance.new("Beam")
+            local attachment0 = Instance.new("Attachment", workspace.Terrain)
+            local attachment1 = Instance.new("Attachment", character:WaitForChild("Head"))
+            
+            tracer.Name = "ESP_Tracer"
+            tracer.Attachment0 = attachment0
+            tracer.Attachment1 = attachment1
+            tracer.Color = ColorSequence.new(settings.TracerColor)
+            tracer.Width0 = 0.1
+            tracer.Width1 = 0.1
+            tracer.Parent = workspace.Terrain
+            
+            table.insert(ESPObjects, attachment0)
+            table.insert(ESPObjects, attachment1)
+            table.insert(ESPObjects, tracer)
+        end
+        
+        -- Name
+        if settings.Names then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "ESP_Name"
+            billboard.Size = UDim2.new(0, 100, 0, 20)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+            billboard.Parent = character:WaitForChild("Head")
+            
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Text = player.Name
+            label.TextColor3 = settings.NameColor
+            label.Font = Fatality.Font
+            label.TextSize = 12
+            label.Parent = billboard
+            
+            table.insert(ESPObjects, billboard)
+        end
+        
+        -- Health Bar
+        if settings.HealthBar then
+            local healthBar = Instance.new("BillboardGui")
+            healthBar.Name = "ESP_Health"
+            healthBar.Size = UDim2.new(0, 40, 0, 5)
+            healthBar.StudsOffset = Vector3.new(0, 2.5, 0)
+            healthBar.AlwaysOnTop = true
+            healthBar.Parent = character:WaitForChild("Head")
+            
+            local bar = Instance.new("Frame")
+            bar.Size = UDim2.new(1, 0, 1, 0)
+            bar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            bar.Parent = healthBar
+            
+            local health = Instance.new("Frame")
+            health.Size = UDim2.new(character:WaitForChild("Humanoid").Health / 100, 0, 1, 0)
+            health.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            health.Parent = bar
+            
+            table.insert(ESPObjects, healthBar)
+        end
+    end
+    
+    for _, player in pairs(game.Players:GetPlayers()) do
+        createESP(player)
+        local conn = player.CharacterAdded:Connect(function(char)
+            task.wait(0.5)
+            createESP(player)
+        end)
+        table.insert(ESPConnections, conn)
+    end
+    
+    local conn2 = game.Players.PlayerAdded:Connect(function(player)
+        local conn3 = player.CharacterAdded:Connect(function(char)
+            task.wait(0.5)
+            createESP(player)
+        end)
+        table.insert(ESPConnections, conn3)
+    end)
+    table.insert(ESPConnections, conn2)
 end
 
 -- The Main Window Class
@@ -231,7 +413,7 @@ function Fatality:CreateWindow(titleText)
         Position = UDim2.new(0, 0, 0, 20),
         BackgroundTransparency = 1,
         Text = "FATALITY.WIN",
-        Font = self.Font,
+        Font = Fatality.Font,
         TextSize = 24,
         TextColor3 = Color3.new(1, 1, 1),
         Parent = Loading,
@@ -252,12 +434,12 @@ function Fatality:CreateWindow(titleText)
         ZIndex = 102
     })
     local FillGrad = Create("UIGradient",{Color = Theme.AccentGradient, Parent = Fill})
-    table.insert(self.Gradients, FillGrad)
+    table.insert(Fatality.Gradients, FillGrad)
 
     -- Main Menu Frame
     local Main = Create("Frame", {
-        Size = UDim2.new(0, 600, 0, 460),
-        Position = UDim2.new(0.5, -300, 0.5, -230),
+        Size = UDim2.new(0, 620, 0, 480),
+        Position = UDim2.new(0.5, -310, 0.5, -240),
         BackgroundColor3 = Theme.Main,
         BorderSizePixel = 0,
         Parent = ScreenGui,
@@ -307,12 +489,12 @@ function Fatality:CreateWindow(titleText)
         BackgroundTransparency = 1,
         Text = "FATALITY",
         TextColor3 = Color3.new(1, 1, 1),
-        Font = self.Font,
+        Font = Fatality.Font,
         TextSize = 20,
         Parent = Sidebar
     })
     local LogoGrad = Create("UIGradient", {Color = Theme.AccentGradient, Parent = Logo})
-    table.insert(self.Gradients, LogoGrad)
+    table.insert(Fatality.Gradients, LogoGrad)
 
     -- Search Bar Implementation
     local SearchContainer = Create("Frame", {
@@ -331,7 +513,7 @@ function Fatality:CreateWindow(titleText)
         PlaceholderText = "Search...",
         TextColor3 = Color3.new(1, 1, 1),
         PlaceholderColor3 = Theme.TextDark,
-        Font = self.Font,
+        Font = Fatality.Font,
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = SearchContainer
@@ -643,7 +825,7 @@ function Fatality:CreateWindow(titleText)
                 })
                 
                 local SatCursor = Create("Frame", {
-                    Size = UDim2.new(0, 4, 0, 4),
+                    Size = UDim2.new(0, 6, 0, 6),
                     BackgroundColor3 = Color3.new(1, 1, 1),
                     ZIndex = 52,
                     Parent = SatFrame
@@ -661,7 +843,6 @@ function Fatality:CreateWindow(titleText)
                 
                 local HueCursor = Create("Frame", {
                     Size = UDim2.new(0, 2, 1, 4),
-                    Position = UDim2.new(0, 0, 0, -2),
                     BackgroundColor3 = Color3.new(1, 1, 1),
                     ZIndex = 52,
                     Parent = HueFrame
@@ -674,8 +855,8 @@ function Fatality:CreateWindow(titleText)
                     local color = Color3.fromHSV(h, s, v)
                     CP.Value = color
                     Preview.BackgroundColor3 = color
-                    SatCursor.Position = UDim2.new(math.clamp(s, 0, 1), -2, math.clamp(1 - v, 0, 1), -2)
-                    HueCursor.Position = UDim2.new(math.clamp(1 - h, 0, 1), -1, 0, -2)
+                    SatCursor.Position = UDim2.new(s, -3, 1 - v, -3)
+                    HueCursor.Position = UDim2.new(1 - h, -1, 0, -2)
                     callback(color)
                 end
 
@@ -688,9 +869,29 @@ function Fatality:CreateWindow(titleText)
 
                 local draggingHue, draggingSat = false, false
                 
-                HueFrame.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingHue = true end end)
-                SatFrame.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSat = true end end)
-                UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingHue = false; draggingSat = false end end)
+                HueFrame.InputBegan:Connect(function(i) 
+                    if i.UserInputType == Enum.UserInputType.MouseButton1 then 
+                        draggingHue = true 
+                        h = 1 - math.clamp((Mouse.X - HueFrame.AbsolutePosition.X) / HueFrame.AbsoluteSize.X, 0, 1)
+                        updateInternal()
+                    end 
+                end)
+                
+                SatFrame.InputBegan:Connect(function(i) 
+                    if i.UserInputType == Enum.UserInputType.MouseButton1 then 
+                        draggingSat = true 
+                        s = math.clamp((Mouse.X - SatFrame.AbsolutePosition.X) / SatFrame.AbsoluteSize.X, 0, 1)
+                        v = 1 - math.clamp((Mouse.Y - SatFrame.AbsolutePosition.Y) / SatFrame.AbsoluteSize.Y, 0, 1)
+                        updateInternal()
+                    end 
+                end)
+                
+                UserInputService.InputEnded:Connect(function(i) 
+                    if i.UserInputType == Enum.UserInputType.MouseButton1 then 
+                        draggingHue = false
+                        draggingSat = false 
+                    end 
+                end)
                 
                 RunService.RenderStepped:Connect(function()
                     if draggingHue then
@@ -704,7 +905,12 @@ function Fatality:CreateWindow(titleText)
                     end
                 end)
 
-                Preview.MouseButton1Click:Connect(function() PickerFrame.Visible = not PickerFrame.Visible end)
+                Preview.MouseButton1Click:Connect(function() 
+                    PickerFrame.Visible = not PickerFrame.Visible 
+                    if PickerFrame.Visible then
+                        updateInternal()
+                    end
+                end)
 
                 if flag then Fatality.Options[flag] = CP end
                 table.insert(Section.Elements, {Name = text, Frame = Frame})
@@ -906,15 +1112,15 @@ function Fatality:Notify(title, text, duration)
     
     local Line = Create("Frame", {Size = UDim2.new(1, 0, 0, 2), Parent = Frame})
     local Grad = Create("UIGradient", {Color = Theme.AccentGradient, Parent = Line})
-    table.insert(self.Gradients, Grad)
+    table.insert(Fatality.Gradients, Grad)
 
     Create("TextLabel", {
         Size = UDim2.new(1, -20, 0, 25),
         Position = UDim2.new(0, 10, 0, 5),
         BackgroundTransparency = 1,
         Text = title:upper(),
-        TextColor3 = self.Accent,
-        Font = self.Font,
+        TextColor3 = Fatality.Accent,
+        Font = Fatality.Font,
         TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = Frame
@@ -926,7 +1132,7 @@ function Fatality:Notify(title, text, duration)
         BackgroundTransparency = 1,
         Text = text,
         TextColor3 = Theme.Text,
-        Font = self.Font,
+        Font = Fatality.Font,
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = Frame
