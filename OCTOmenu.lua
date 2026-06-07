@@ -670,15 +670,20 @@ function Fatality:CreateWindow(titleText)
 
                 local h, s, v = default:ToHSV()
                 
-                function CP:Set(color)
-                    local nh, ns, nv = color:ToHSV()
-                    h, s, v = nh, ns, nv
+                local function updateInternal()
+                    local color = Color3.fromHSV(h, s, v)
                     CP.Value = color
                     Preview.BackgroundColor3 = color
-                    SatCursor.Position = UDim2.new(s, -2, 1 - v, -2)
-                    HueCursor.Position = UDim2.new(1 - h, -1, 0, -2)
+                    SatCursor.Position = UDim2.new(math.clamp(s, 0, 1), -2, math.clamp(1 - v, 0, 1), -2)
+                    HueCursor.Position = UDim2.new(math.clamp(1 - h, 0, 1), -1, 0, -2)
                     callback(color)
                 end
+
+                function CP:Set(color)
+                    h, s, v = color:ToHSV()
+                    updateInternal()
+                end
+                
                 CP:Set(default)
 
                 local draggingHue, draggingSat = false, false
@@ -690,14 +695,12 @@ function Fatality:CreateWindow(titleText)
                 RunService.RenderStepped:Connect(function()
                     if draggingHue then
                         h = 1 - math.clamp((Mouse.X - HueFrame.AbsolutePosition.X) / HueFrame.AbsoluteSize.X, 0, 1)
-                        local newCol = Color3.fromHSV(h, s, v)
-                        CP:Set(newCol)
+                        updateInternal()
                     end
                     if draggingSat then
                         s = math.clamp((Mouse.X - SatFrame.AbsolutePosition.X) / SatFrame.AbsoluteSize.X, 0, 1)
                         v = 1 - math.clamp((Mouse.Y - SatFrame.AbsolutePosition.Y) / SatFrame.AbsoluteSize.Y, 0, 1)
-                        local newCol = Color3.fromHSV(h, s, v)
-                        CP:Set(newCol)
+                        updateInternal()
                     end
                 end)
 
